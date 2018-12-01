@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 from __future__ import unicode_literals
 
+import argparse
 import sys
 import warnings
 
@@ -10,7 +11,17 @@ from django.core.management import execute_from_command_line
 warnings.simplefilter("always", PendingDeprecationWarning)
 warnings.simplefilter("always", DeprecationWarning)
 
-settings.configure(
+
+parser = argparse.ArgumentParser(description="Run the test suite, or specific tests specified using dotted paths.")
+parser.add_argument("--use-tz-false", action='store_true', default=False,
+                    help="Set USE_TZ=False in settings")
+
+known_args, remaining_args = parser.parse_known_args()
+
+remaining_options = [a for a in remaining_args if a.startswith('-')]
+test_args = [a for a in remaining_args if not a.startswith('-')]
+
+settings_dict = dict(
     ROOT_URLCONF='',
     DATABASES={'default': {'ENGINE': 'django.db.backends.sqlite3'}},
     PAYPAL_TEST=True,
@@ -36,14 +47,6 @@ settings.configure(
             'KEY_PREFIX': 'paypal_tests_',
         }
     },
-    MIDDLEWARE_CLASSES=[
-        "django.contrib.sessions.middleware.SessionMiddleware",
-        "django.middleware.common.CommonMiddleware",
-        "django.middleware.csrf.CsrfViewMiddleware",
-        "django.contrib.auth.middleware.AuthenticationMiddleware",
-        "django.contrib.messages.middleware.MessageMiddleware",
-        "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    ],
     MIDDLEWARE=[
         "django.contrib.sessions.middleware.SessionMiddleware",
         "django.middleware.common.CommonMiddleware",
@@ -52,7 +55,7 @@ settings.configure(
         "django.contrib.messages.middleware.MessageMiddleware",
         "django.middleware.clickjacking.XFrameOptionsMiddleware",
     ],
-    TEMPLATES=[  # Django 1.8 and later
+    TEMPLATES=[
         {
             'BACKEND': 'django.template.backends.django.DjangoTemplates',
             'DIRS': [
@@ -71,18 +74,30 @@ settings.configure(
             },
         },
     ],
-    USE_TZ=True,
-)
+    USE_TZ=not known_args.use_tz_false,
+    LOGGING={
+        'version': 1,
+        'disable_existing_loggers': True,
+        'root': {
+            'level': 'WARNING',
+            'handlers': ['console'],
+        },
+        'handlers': {
+            'console': {
+                'level': 'WARNING',
+                'class': 'logging.StreamHandler',
+            },
+        },
+    },
+    )
+
+settings.configure(**settings_dict)
 
 
-argv = [sys.argv[0], "test"]
+if len(test_args) == 0:
+    test_args = ["paypal.pro.tests", "paypal.standard.ipn.tests", "paypal.standard.pdt.tests"]
 
-if len(sys.argv) == 1:
-    # Nothing following 'runtests.py':
-    argv.extend(["paypal.pro.tests", "paypal.standard.ipn.tests", "paypal.standard.pdt.tests"])
-else:
-    # Allow tests to be specified:
-    argv.extend(sys.argv[1:])
+argv = [sys.argv[0], "test"] + remaining_options + test_args
 
 if __name__ == '__main__':
     execute_from_command_line(argv)

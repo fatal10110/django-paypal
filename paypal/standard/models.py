@@ -2,14 +2,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
-from warnings import warn
-
-from django.conf import settings
 from django.db import models
 from django.utils.functional import cached_property
 
 from paypal.standard.conf import POSTBACK_ENDPOINT, SANDBOX_POSTBACK_ENDPOINT
 from paypal.standard.helpers import check_secret, duplicate_txn_id
+from paypal.utils import warn_untested
 
 ST_PP_ACTIVE = 'Active'
 ST_PP_CANCELLED = 'Cancelled'
@@ -235,7 +233,7 @@ class PayPalStandardBase(Model):
 
     class Meta:
         abstract = True
-        app_label = 'paypal_standard_base'  # Keep Django 1.7 quiet
+        app_label = 'paypal_standard_base'
 
     def __unicode__(self):
         if self.is_transaction():
@@ -274,24 +272,31 @@ class PayPalStandardBase(Model):
         return len(self.recurring_payment_id) > 0
 
     def is_subscription(self):
+        warn_untested()
         return len(self.subscr_id) > 0
 
     def is_subscription_payment(self):
+        warn_untested()
         return self.txn_type == "subscr_payment"
 
     def is_subscription_failed(self):
+        warn_untested()
         return self.txn_type == "subscr_failed"
 
     def is_subscription_cancellation(self):
+        warn_untested()
         return self.txn_type == "subscr_cancel"
 
     def is_subscription_end_of_term(self):
+        warn_untested()
         return self.txn_type == "subscr_eot"
 
     def is_subscription_modified(self):
+        warn_untested()
         return self.txn_type == "subscr_modify"
 
     def is_subscription_signup(self):
+        warn_untested()
         return self.txn_type == "subscr_signup"
 
     def is_recurring_create(self):
@@ -310,18 +315,23 @@ class PayPalStandardBase(Model):
         return self.txn_type == "recurring_payment_failed"
 
     def is_recurring_suspended(self):
+        warn_untested()
         return self.txn_type == "recurring_payment_suspended"
 
     def is_recurring_suspended_due_to_max_failed_payment(self):
+        warn_untested()
         return self.txn_type == "recurring_payment_suspended_due_to_max_failed_payment"
 
     def is_billing_agreement(self):
+        warn_untested()
         return len(self.mp_id) > 0
 
     def is_billing_agreement_create(self):
+        warn_untested()
         return self.txn_type == "mp_signup"
 
     def is_billing_agreement_cancel(self):
+        warn_untested()
         return self.txn_type == "mp_cancel"
 
     def set_flag(self, info, code=None):
@@ -329,6 +339,7 @@ class PayPalStandardBase(Model):
         self.flag = True
         self.flag_info += info
         if code is not None:
+            warn_untested()
             self.flag_code = code
 
     def clear_flag(self):
@@ -350,21 +361,12 @@ class PayPalStandardBase(Model):
                     self.set_flag("Invalid payment_status. (%s)" % self.payment_status)
                 if duplicate_txn_id(self):
                     self.set_flag("Duplicate txn_id. (%s)" % self.txn_id)
-                if hasattr(settings, 'PAYPAL_RECEIVER_EMAIL'):
-                    warn("Use of PAYPAL_RECEIVER_EMAIL in settings has been Deprecated.\n"
-                         "Check of valid email must be done when receiving the\n"
-                         "valid_ipn_received signal",
-                         DeprecationWarning)
-                    if self.receiver_email != settings.PAYPAL_RECEIVER_EMAIL:
-                        self.set_flag("Invalid receiver_email. (%s)" % self.receiver_email)
-            else:
-                # @@@ Run a different series of checks on recurring payments.
-                pass
 
         self.save()
 
     def verify_secret(self, form_instance, secret):
         """Verifies an IPN payment over SSL using EWP."""
+        warn_untested()
         if not check_secret(form_instance, secret):
             self.set_flag("Invalid secret. (%s)") % secret
         self.save()
